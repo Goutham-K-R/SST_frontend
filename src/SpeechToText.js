@@ -1,5 +1,3 @@
-// START OF FILE: SpeechToText.js (with the correct live backend URL)
-
 import React, { useState, useEffect, useRef } from 'react';
 import './SpeechToText.css';
 
@@ -12,7 +10,7 @@ const SpeechToText = () => {
     
     // Data State
     const [liveTranscript, setLiveTranscript] = useState('');
-    const [finalTranscript, setFinalTranscript] = useState('');
+    const [finalTranscript, setFinalTranscript] = useState(''); // Using a clearer name
     const [extractedData, setExtractedData] = useState(null);
     const [selectedLanguage, setSelectedLanguage] = useState('en');
     
@@ -31,6 +29,7 @@ const SpeechToText = () => {
         try {
             const savedHistory = localStorage.getItem('medicalHistory');
             if (savedHistory) setHistory(JSON.parse(savedHistory));
+            localStorage.removeItem('medicalHistory');
         } catch (err) {
             setError("Failed to load history:" + err);
         }
@@ -56,13 +55,12 @@ const SpeechToText = () => {
         setIsLoading(false);
 
         try {
-            // --- THIS IS THE CORRECTED SECTION ---
-            // Connect directly to your live backend on Render
-            const wsProtocol = 'wss://'; // MUST be wss:// for a live, secure server
-            const wsHost = 'oxzygen-stt-backend.onrender.com'; // Your live backend URL from Render
-
-            const wsUrl = `${wsProtocol}${wsHost}/speech/${selectedLanguage}`;
-            // --- END OF CORRECTED SECTION ---
+            // --- CORRECTED & CRITICAL: This is how you format the WebSocket URL ---
+            // For local development on your computer:
+            const wsUrl = `ws://127.0.0.1:5000/speech/${selectedLanguage}`;
+            
+            // For your deployed cPanel server (replace with your actual domain):
+            // const wsUrl = `wss://your-cpanel-domain.com/speech/${selectedLanguage}`;
             
             const ws = new WebSocket(wsUrl);
             webSocketRef.current = ws;
@@ -72,6 +70,7 @@ const SpeechToText = () => {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true } });
                 streamRef.current = stream;
                 
+                // --- UPGRADED: Modern AudioWorklet implementation for smooth performance ---
                 const context = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
                 audioContextRef.current = context;
                 
@@ -136,7 +135,7 @@ const SpeechToText = () => {
 
             ws.onerror = () => {
                 if (!hasCompletedSuccessfully.current) {
-                    setError("Connection to server failed. Please ensure the backend is running and the URL is correct.");
+                    setError("Connection to server failed. Please ensure the backend is running.");
                 }
                 setIsLoading(false);
                 setIsListening(false);
@@ -148,7 +147,7 @@ const SpeechToText = () => {
                 }
             };
         } catch (err) {
-            setError("Failed to get microphone permissions or create WebSocket.");
+            setError("Failed to establish connection");
         }
     };
 
@@ -169,7 +168,6 @@ const SpeechToText = () => {
 
     const handleMicClick = () => isListening ? stopStreaming() : startStreaming();
     
-    // ... all the other functions (handleLoadHistory, handleDeleteHistory, handleAddItem, etc.) and the return() JSX remain the same ...
     const handleLoadHistory = (entry) => {
         setFinalTranscript(entry.text);
         setExtractedData(entry.terms);
